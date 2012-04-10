@@ -60,5 +60,9 @@ function add_vb_logout()
 	$wpdb->query("DELETE FROM session WHERE userid = '".$userId->userid."' ");
 }
 
+add_action( 'wp_logout', 'add_vb_logout' );
 
+add_action('wp_authenticate_user', 'wpbb_login');
+
+add_action('register_post', 'wpbb_register_hint');
 ?>
