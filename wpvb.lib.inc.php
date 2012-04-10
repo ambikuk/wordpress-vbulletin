@@ -1,11 +1,9 @@
 <?php
-// $Id: wpvb.module,v 1.11 2008/04/19 02:58:47 sun Exp $
-
 /**
  * @file
- * Drupal vB module database functions.
+ * Wordpress vB module database functions.
  *
- * Forked from Migrator module, http://drupal.org/project/migrator
+ * Forked from Drupal vB module, http://drupal.org/project/drupalvb
  */
 
 /**
@@ -18,9 +16,10 @@
  */
 function wpvb_db_connect() {
   global $db_url, $db_prefix;
+	
   if (wpvb_db_is_valid()) {
-    if (!variable_get('wpvb_db_is_default', TRUE)) {
-      $wpvb_db_url = variable_get('wpvb_db', '');
+    if (!get_option('wpvb_db_is_default', TRUE)) {
+      $wpvb_db_url = get_option('wpvb_db', '');
       if (!is_array($db_url)) {
         $db_url = array('default' => $db_url);
       }
@@ -30,7 +29,7 @@ function wpvb_db_connect() {
       }
     }
     wpvb_get_default_db_prefix();
-    $db_prefix = variable_get('wpvb_db_prefix', 'vb_');
+    $db_prefix = get_option('wpvb_db_prefix', 'vb_');
   }
 }
 
@@ -41,7 +40,7 @@ function wpvb_db_connect() {
  */
 function wpvb_db_disconnect() {
   if (wpvb_db_is_valid()) {
-    if (!variable_get('wpvb_db_is_default', TRUE)) {
+    if (!get_option('wpvb_db_is_default', TRUE)) {
       db_set_active();
     }
     wpvb_set_default_db_prefix();
@@ -49,7 +48,7 @@ function wpvb_db_disconnect() {
 }
 
 /**
- * Helper function to recall Drupal's default database table prefix.
+ * Helper function to recall Wordpress's default database table prefix.
  *
  * @see wpvb_set_default_prefix()
  */
@@ -80,13 +79,13 @@ function wpvb_set_default_db_prefix() {
 function wpvb_db_is_valid() {
   global $db_url;
   static $valid;
-
+	
   if (isset($valid)) {
     return $valid;
   }
 
   $valid = FALSE;
-  $connection_string = variable_get('wpvb_db', '');
+  $connection_string = get_option('wpvb_db', '');
 
   // If vB tables live in the same database as Drupal, the connection is valid.
   $drupal_url = (is_array($db_url) ? $db_url['default'] : $db_url);
@@ -124,9 +123,9 @@ function wpvb_db_is_valid() {
         break;
     }
   }
-  if (!$valid && user_access('administer wpvb')) {
-    drupal_set_message(t('Invalid database connection for vBulletin. Please configure the connection in <a href="!settings">Drupal vB\'s settings</a>', array('!settings' => url('admin/settings/wpvb/database'))), 'error');
-  }
+//  if (!$valid && user_access('administer wpvb')) {
+//    drupal_set_message(t('Invalid database connection for vBulletin. Please configure the connection in <a href="!settings">Drupal vB\'s settings</a>', array('!settings' => url('admin/settings/wpvb/database'))), 'error');
+//  }
   return $valid;
 }
 
@@ -232,3 +231,10 @@ function _wpvb_init_user_map() {
   }
 }
 
+function wpvb_db_url() {
+	static $db_url;
+	if(!isset($db_url)) {
+		
+	}
+	return $db_url;
+}
