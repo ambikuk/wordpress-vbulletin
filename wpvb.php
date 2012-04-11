@@ -17,8 +17,8 @@ define('VB_TIMENOW', time());
 define('VB_COOKIETIMEOUT', 900);
 
 add_action( 'wp_logout', 'add_vb_logout' );
-add_action('wp_authenticate_user', 'add_vb_login');
-add_action('register_post', 'wpbb_register_hint');
+//add_action('wp_authenticate_user', 'add_vb_login');
+//add_action('register_post', 'wpbb_register_hint');
 /*
  * login
  */
@@ -38,6 +38,6 @@ function add_vb_logout()
 	wpvb_clear_cookies(1);
 }
 
-function add_vb_login(){
-	wpvb_set_login_cookies(1);
-}
+//function add_vb_login(){
+//	wpvb_set_login_cookies(1);
+//}

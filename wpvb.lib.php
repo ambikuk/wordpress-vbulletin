@@ -89,12 +89,15 @@ function wpvb_clear_cookies($userid = NULL) {
     $wpdb->query("DELETE FROM session WHERE userid = %d", $userid);
     $wpdb->query("UPDATE user SET lastvisit = %d WHERE userid = %d", time(), $userid);
   }
-
-  setcookie($cookie_prefix .'sessionhash', '', $expire, $cookie_path, $vb_cookie_domain);
-  setcookie($cookie_prefix .'lastvisit', '', $expire, $cookie_path, $vb_cookie_domain);
-  setcookie($cookie_prefix .'lastactivity', '', $expire, $cookie_path, $vb_cookie_domain);
-  setcookie($cookie_prefix .'userid', '', $expire, $cookie_path, $vb_cookie_domain);
-  setcookie($cookie_prefix .'password', '', $expire, $cookie_path, $vb_cookie_domain);
+//	var_dump($expire);
+//	var_dump($cookie_path);
+//	var_dump($vb_cookie_domain);
+//	var_dump($cookie_prefix);exit;
+  setcookie($cookie_prefix .'_sessionhash', '', $expire, $cookie_path, $vb_cookie_domain);
+  setcookie($cookie_prefix .'_lastvisit', '', $expire, $cookie_path, $vb_cookie_domain);
+  setcookie($cookie_prefix .'_lastactivity', '', $expire, $cookie_path, $vb_cookie_domain);
+  setcookie($cookie_prefix .'_userid', '', $expire, $cookie_path, $vb_cookie_domain);
+  setcookie($cookie_prefix .'_password', '', $expire, $cookie_path, $vb_cookie_domain);
 }
 
 /**
@@ -308,6 +311,7 @@ function wpvb_get_options() {
       $options[$var->varname] = $var->value;
     }
   }
+//	var_dump($options);exit;
   return $options;
 }
 
@@ -323,7 +327,9 @@ function wpvb_get_config() {
   if (empty($config) && file_exists($config_file)) {
     require_once $config_file;
   }
+//	var_dump($config);exit;
   return $config;
+	
 }
 
 /**
