@@ -1,4 +1,10 @@
 <?php
+
+define('WPVB_DB_HOST', 'localhost');
+define('WPVB_DB_NAME', 'nurbaya');
+define('WPVB_DB_USER', 'dermawan');
+define('WPVB_DB_PASSWORD', 'bandoeng');
+
 /**
  * @file
  * Wordpress vB module database functions.
@@ -15,22 +21,7 @@
  * @see wpvb_db_disconnect(), wpvb_get()
  */
 function wpvb_db_connect() {
-  global $db_url, $db_prefix;
-	
-  if (wpvb_db_is_valid()) {
-    if (!get_option('wpvb_db_is_default', TRUE)) {
-      $wpvb_db_url = get_option('wpvb_db', '');
-      if (!is_array($db_url)) {
-        $db_url = array('default' => $db_url);
-      }
-      if (!empty($wpvb_db_url)) {
-        $db_url['wpvb'] = $wpvb_db_url;
-        db_set_active('wpvb');
-      }
-    }
-    wpvb_get_default_db_prefix();
-    $db_prefix = get_option('wpvb_db_prefix', 'vb_');
-  }
+	$wpdb = wpvb_db();
 }
 
 /**
@@ -39,12 +30,6 @@ function wpvb_db_connect() {
  * @see wpvb_db_connect(), wpvb_get()
  */
 function wpvb_db_disconnect() {
-  if (wpvb_db_is_valid()) {
-    if (!get_option('wpvb_db_is_default', TRUE)) {
-      db_set_active();
-    }
-    wpvb_set_default_db_prefix();
-  }
 }
 
 /**
@@ -53,12 +38,6 @@ function wpvb_db_disconnect() {
  * @see wpvb_set_default_prefix()
  */
 function wpvb_get_default_db_prefix() {
-  global $db_prefix;
-  static $drupal_db_prefix;
-  if (!isset($drupal_db_prefix)) {
-    $drupal_db_prefix = $db_prefix;
-  }
-  return $drupal_db_prefix;
 }
 
 /**
@@ -67,8 +46,6 @@ function wpvb_get_default_db_prefix() {
  * @see wpvb_get_default_prefix()
  */
 function wpvb_set_default_db_prefix() {
-  global $db_prefix;
-  $db_prefix = wpvb_get_default_db_prefix();
 }
 
 /**
@@ -77,56 +54,6 @@ function wpvb_set_default_db_prefix() {
  * @see wpvb_settings_system()
  */
 function wpvb_db_is_valid() {
-  global $db_url;
-  static $valid;
-	
-  if (isset($valid)) {
-    return $valid;
-  }
-
-  $valid = FALSE;
-  $connection_string = get_option('wpvb_db', '');
-
-  // If vB tables live in the same database as Drupal, the connection is valid.
-  $drupal_url = (is_array($db_url) ? $db_url['default'] : $db_url);
-  if ($drupal_url === $connection_string) {
-    $valid = TRUE;
-    return $valid;
-  }
-
-  $db = (!empty($connection_string) ? parse_url($connection_string) : array());
-  if (!empty($db['scheme']) && !empty($db['host']) && !empty($db['user']) && !empty($db['pass']) && !empty($db['path'])) {
-    foreach (array('user', 'pass', 'host', 'path') as $value) {
-      $db[$value] = urldecode($db[$value]);
-    }
-    // Drupal can't switch database layers, so we fix it if it differs from the
-    // globally used type.
-    if ($db['scheme'] != $GLOBALS['db_type']) {
-      variable_set('wpvb_db', preg_replace('/^'. $db['scheme'] .'/', $GLOBALS['db_type'], $connection_string));
-    }
-    switch ($GLOBALS['db_type']) {
-      case 'mysql':
-        $connection = @mysql_connect($db['host'], $db['user'], $db['pass'], TRUE, 2);
-        if ($connection && mysql_select_db(substr($db['path'], 1))) {
-          $valid = TRUE;
-          @mysql_close($connection);
-        }
-        break;
-
-      case 'mysqli':
-        $connection = mysqli_init();
-        @mysqli_real_connect($connection, $db['host'], $db['user'], $db['pass'], substr($db['path'], 1), $db['port'], NULL, MYSQLI_CLIENT_FOUND_ROWS);
-        if ($connection) {
-          $valid = TRUE;
-          @mysqli_close($connection);
-        }
-        break;
-    }
-  }
-//  if (!$valid && user_access('administer wpvb')) {
-//    drupal_set_message(t('Invalid database connection for vBulletin. Please configure the connection in <a href="!settings">Drupal vB\'s settings</a>', array('!settings' => url('admin/settings/wpvb/database'))), 'error');
-//  }
-  return $valid;
 }
 
 /**
@@ -140,11 +67,9 @@ function wpvb_get($op) {
   if (!function_exists($function)) {
     return FALSE;
   }
-  wpvb_db_connect();
   $args = func_get_args();
   array_shift($args);
   $result = call_user_func_array($function, $args);
-  wpvb_db_disconnect();
   return $result;
 }
 
@@ -154,8 +79,6 @@ function wpvb_get($op) {
  * @see db_query()
  */
 function wpvb_db_query($query) {
-  wpvb_db_connect();
-
   $args = func_get_args();
   array_shift($args);
   $query = db_prefix_tables($query);
@@ -165,8 +88,6 @@ function wpvb_db_query($query) {
   _db_query_callback($args, TRUE);
   $query = preg_replace_callback(DB_QUERY_REGEXP, '_db_query_callback', $query);
   $result = _db_query($query);
-  
-  wpvb_db_disconnect();
   return $result;
 }
 
@@ -176,8 +97,6 @@ function wpvb_db_query($query) {
   * @see db_query_range
  */
 function wpvb_db_query_range($query) {
-  wpvb_db_connect();
-  
   $args = func_get_args();
   $count = array_pop($args);
   $from = array_pop($args);
@@ -191,8 +110,6 @@ function wpvb_db_query_range($query) {
   $query = preg_replace_callback(DB_QUERY_REGEXP, '_db_query_callback', $query);
   $query .= ' LIMIT '. (int)$count .' OFFSET '. (int)$from;
   $result = _db_query($query);
-  
-  wpvb_db_disconnect();
   return $result;
 }
 
@@ -202,7 +119,6 @@ function wpvb_db_query_range($query) {
  * Borrowed from Drupal 6.
  */
 function wpvb_db_last_insert_id($table, $field) {
-  return db_result(wpvb_db_query('SELECT LAST_INSERT_ID()'));
 }
 
 /**
@@ -235,4 +151,10 @@ function _wpvb_init_user_map() {
  * @return wpdb 
  */
 function wpvb_db() {
+	static $wpdb;
+	if(!isset($wpdb)) {
+		$wpdb = new wpdb(WPVB_DB_USER, WPVB_DB_PASSWORD, WPVB_DB_NAME, WPVB_DB_HOST);
+		$wpdb->set_prefix(get_option('wpvb_db_prefix', ''));
+	}
+	return $wpdb;
 }
