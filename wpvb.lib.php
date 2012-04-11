@@ -133,9 +133,10 @@ function wpvb_get_ip() {
  *   Form values provided by hook_user().
  */
 function wpvb_create_user($account, $edit) {
-	$wpdb = wpvb_db();
+	global $wpdb;
+	$vbdb = wpvb_db();
   // Ensure we are not duplicating a user.
-  if ($wpdb->query("SELECT COUNT(userid) FROM user WHERE LOWER(username) = LOWER('%s')", wpvb_htmlspecialchars($edit['name'])) > 0) {
+  if ($vbdb->get_var($vbdb->prepare("SELECT COUNT(userid) FROM user WHERE LOWER(username) = LOWER('%s')", wpvb_htmlspecialchars($edit['name']))) > 0) {
     return FALSE;
   }
 
@@ -155,11 +156,8 @@ function wpvb_create_user($account, $edit) {
   $joindate = $account->created;
 
   // Attempt to grab the user title from the database.
-  $result = $wpdb->query("SELECT title FROM usertitle WHERE minposts = 0");
-  if ($resarray = db_fetch_array($result)) {
-    $usertitle = $resarray['title'];
-  }
-  else {
+  $usertitle = $vbdb->get_var("SELECT title FROM usertitle WHERE minposts = 0");
+  if (empty($usertitle)) {
     $usertitle = 'Junior Member';
   }
 
@@ -176,7 +174,7 @@ function wpvb_create_user($account, $edit) {
 
   // Set up the insertion query.
 	
-	$result = $wpdb->insert('user', array(
+	$result = $vbdb->insert('user', array(
 		'username' => htmlspecialchars($edit['name']),
 		'usergroupid' => $usergroupid, 
 		'password' => $passhash, 
