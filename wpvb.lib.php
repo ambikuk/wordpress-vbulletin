@@ -20,8 +20,8 @@
  */
 function wpvb_set_login_cookies($userid) {
   // Load required vB user data.
-	$wpdb = wpvb_db();
-  $wpdb->query("SELECT userid, password, salt FROM user WHERE userid = %d", $userid);
+	$vbdb = wpvb_db();
+  $vbuser = $vbdb->get_row($vbdb->prepare("SELECT userid, password, salt FROM user WHERE userid = %d", $userid));
   if (!$vbuser) {
     return FALSE;
   }
@@ -44,7 +44,7 @@ function wpvb_set_login_cookies($userid) {
 
   // Clear out old session (if available).
   if (!empty($_COOKIE[$cookie_prefix .'sessionhash'])) {
-    wpvb_db_query("DELETE FROM session WHERE sessionhash = '%s'", $_COOKIE[$cookie_prefix .'sessionhash']);
+    $vbdb->query($vbdb->prepare("DELETE FROM session WHERE sessionhash = '%s'", $_COOKIE[$cookie_prefix .'sessionhash']));
   }
 
   // Setup user session.
@@ -52,7 +52,7 @@ function wpvb_set_login_cookies($userid) {
   $idhash = md5($_SERVER['HTTP_USER_AGENT'] . $ip);
   $sessionhash = md5($now . request_uri() . $idhash . $_SERVER['REMOTE_ADDR'] . user_password(6));
 
-  wpvb_db_query("REPLACE INTO session (sessionhash, userid, host, idhash, lastactivity, location, useragent, loggedin) VALUES ('%s', %d, '%s', '%s', %d, '%s', '%s', %d)", $sessionhash, $vbuser['userid'], substr($_SERVER['REMOTE_ADDR'], 0, 15), $idhash, $now, '/forum/', $_SERVER['HTTP_USER_AGENT'], 2);
+  $vbdb->query($vbdb->prepare("REPLACE INTO session (sessionhash, userid, host, idhash, lastactivity, location, useragent, loggedin) VALUES ('%s', %d, '%s', '%s', %d, '%s', '%s', %d)", $sessionhash, $vbuser['userid'], substr($_SERVER['REMOTE_ADDR'], 0, 15), $idhash, $now, '/forum/', $_SERVER['HTTP_USER_AGENT'], 2));
 
   // Setup cookies.
   setcookie($cookie_prefix .'sessionhash', $sessionhash, $expire, $cookie_path, $vb_cookie_domain);
