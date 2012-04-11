@@ -303,9 +303,9 @@ function wpvb_get_options() {
   static $options = array();
 
   if (empty($options)) {
-    $result = $wpdb->query("SELECT varname, value FROM setting");
-    while ($var = db_fetch_array($result)) {
-      $options[$var['varname']] = $var['value'];
+    $result = $wpdb->get_results("SELECT varname, value FROM setting");
+    foreach ($result as $var) {
+      $options[$var->varname] = $var->value;
     }
   }
   return $options;
