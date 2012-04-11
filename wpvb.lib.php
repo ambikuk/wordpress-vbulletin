@@ -20,8 +20,8 @@
  */
 function wpvb_set_login_cookies($userid) {
   // Load required vB user data.
-	$wpdb = wpvb_db();
-  $wpdb->query($wpdb->prepare("SELECT userid, password, salt FROM user WHERE userid = %d", $userid));
+	$vbdb = wpvb_db();
+  $vbuser = $vbdb->get_row($vbdb->prepare("SELECT userid, password, salt FROM user WHERE userid = %d", $userid));
   if (!$vbuser) {
     return FALSE;
   }
@@ -86,12 +86,9 @@ function wpvb_clear_cookies($userid = NULL) {
   }
 
   if (!empty($userid)) {
-    $wpdb->query($wpdb->prepare("DELETE FROM session WHERE userid = %d", $userid));
-		$deleted = $wpdb->rows_affected;
-    $wpdb->query($wpdb->prepare("UPDATE user SET lastvisit = %d WHERE userid = %d", time(), $userid));
-		$updated = $wpdb->rows_affected;
+    $wpdb->query("DELETE FROM session WHERE userid = %d", $userid);
+    $wpdb->query("UPDATE user SET lastvisit = %d WHERE userid = %d", time(), $userid);
   }
-//	echo $deleted.' - '.$updated;exit;
 //	var_dump($expire);
 //	var_dump($cookie_path);
 //	var_dump($vb_cookie_domain);
