@@ -231,10 +231,8 @@ function _wpvb_init_user_map() {
   }
 }
 
-function wpvb_db_url() {
-	static $db_url;
-	if(!isset($db_url)) {
-		
-	}
-	return $db_url;
+/**
+ * @return wpdb 
+ */
+function wpvb_db() {
 }

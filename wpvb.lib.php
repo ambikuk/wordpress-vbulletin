@@ -20,7 +20,8 @@
  */
 function wpvb_set_login_cookies($userid) {
   // Load required vB user data.
-  $vbuser = db_fetch_array(wpvb_db_query("SELECT userid, password, salt FROM user WHERE userid = %d", $userid));
+	$wpdb = wpvb_db();
+  $wpdb->query("SELECT userid, password, salt FROM user WHERE userid = %d", $userid);
   if (!$vbuser) {
     return FALSE;
   }
@@ -68,6 +69,7 @@ function wpvb_set_login_cookies($userid) {
  * @see wpvb_logout(), wpvb_user_logout()
  */
 function wpvb_clear_cookies($userid = NULL) {
+	$wpdb = wpvb_db();
   $vb_config = wpvb_get('config');
   $vb_options = wpvb_get('options');
 
@@ -84,8 +86,8 @@ function wpvb_clear_cookies($userid = NULL) {
   }
 
   if (!empty($userid)) {
-    wpvb_db_query("DELETE FROM session WHERE userid = %d", $userid);
-    wpvb_db_query("UPDATE user SET lastvisit = %d WHERE userid = %d", time(), $userid);
+    $wpdb->query("DELETE FROM session WHERE userid = %d", $userid);
+    $wpdb->query("UPDATE user SET lastvisit = %d WHERE userid = %d", time(), $userid);
   }
 
   setcookie($cookie_prefix .'sessionhash', '', $expire, $cookie_path, $vb_cookie_domain);
@@ -128,8 +130,9 @@ function wpvb_get_ip() {
  *   Form values provided by hook_user().
  */
 function wpvb_create_user($account, $edit) {
+	$wpdb = wpvb_db();
   // Ensure we are not duplicating a user.
-  if (db_result(wpvb_db_query("SELECT COUNT(userid) FROM user WHERE LOWER(username) = LOWER('%s')", wpvb_htmlspecialchars($edit['name']))) > 0) {
+  if ($wpdb->query("SELECT COUNT(userid) FROM user WHERE LOWER(username) = LOWER('%s')", wpvb_htmlspecialchars($edit['name'])) > 0) {
     return FALSE;
   }
 
@@ -149,7 +152,7 @@ function wpvb_create_user($account, $edit) {
   $joindate = $account->created;
 
   // Attempt to grab the user title from the database.
-  $result = wpvb_db_query("SELECT title FROM usertitle WHERE minposts = 0");
+  $result = $wpdb->query("SELECT title FROM usertitle WHERE minposts = 0");
   if ($resarray = db_fetch_array($result)) {
     $usertitle = $resarray['title'];
   }
@@ -169,12 +172,29 @@ function wpvb_create_user($account, $edit) {
   $usergroupid = variable_get('wpvb_default_usergroup', '2');
 
   // Set up the insertion query.
-  $result = wpvb_db_query("INSERT INTO user (username, usergroupid, password, passworddate, usertitle, email, salt, showvbcode, languageid, timezoneoffset, posts, joindate, lastvisit, lastactivity, options) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', 1, %d, '%s', 0, '%s', '%s', '%s', '%s')", wpvb_htmlspecialchars($edit['name']), $usergroupid, $passhash, $passdate, $usertitle, $edit['mail'], $salt, wpvb_get('languageid'), $timezone, $joindate, time(), time(), $options);
+	
+	$result = $wpdb->insert('user', array(
+		'username' => htmlspecialchars($edit['name']),
+		'usergroupid' => $usergroupid, 
+		'password' => $passhash, 
+		'passworddate' => $passdate, 
+		'usertitle' => $usertitle, 
+		'email' => $edit['mail'], 
+		'salt' => $salt, 
+		'languageid' => wpvb_get('languageid'), 
+		'timezoneoffset' =>  $timezone,  
+		'joindate' => $joindate, 
+		'lastvisit' => time(), 
+		'lastactivity' => time(), 
+		'options' => $options
+	), array(
+		'%s', '%s', '%s', '%s', '%s', '%s', '%s', '1', '%d', '%s', '0', '%s', '%s', '%s', '%s'
+	));
 
-  $userid = wpvb_db_last_insert_id('user', 'userid');
+  $userid = $wpdb->insert_id;
 
-  wpvb_db_query("INSERT INTO userfield (userid) VALUES (%d)", $userid);
-  wpvb_db_query("INSERT INTO usertextfield (userid) VALUES (%d)", $userid);
+  $wpdb->query("INSERT INTO userfield (userid) VALUES (%d)", $userid);
+  $wpdb->query("INSERT INTO usertextfield (userid) VALUES (%d)", $userid);
 
   // Insert new user into mapping table.
   wpvb_set_mapping($account->uid, $userid);
@@ -187,6 +207,7 @@ function wpvb_create_user($account, $edit) {
  * Update a user in vBulletin.
  */
 function wpvb_update_user($account, $edit) {
+	$wpdb = wpvb_db();
   $fields = $values = array();
 
   foreach ($edit as $field => $value) {
@@ -230,12 +251,12 @@ function wpvb_update_user($account, $edit) {
 
   // Use previous case insensitive username to update conflicting names.
   $values[] = wpvb_htmlspecialchars($account->name);
-  wpvb_db_query("UPDATE user SET ". implode(', ', $fields) ." WHERE LOWER(username) = LOWER('%s')", $values);
+  $wpdb->query("UPDATE user SET ". implode(', ', $fields) ." WHERE LOWER(username) = LOWER('%s')", $values);
 
   // Ensure this user exists in the mapping table.
   // When integrating an existing installation, the mapping may not yet exist.
-  $userid = db_result(wpvb_db_query("SELECT userid FROM user WHERE username = '%s'", wpvb_htmlspecialchars($account->name)));
-  wpvb_set_mapping($account->uid, $userid);
+	$user = $wpdb->get_row("SELECT userid FROM user WHERE username = '%s'", wpvb_htmlspecialchars($account->name));
+  wpvb_set_mapping($account->uid, $user->userid);
 }
 
 /**
@@ -247,13 +268,15 @@ function wpvb_update_user($account, $edit) {
  *   A vBulletin user id.
  */
 function wpvb_set_mapping($uid, $userid) {
-  db_query("INSERT IGNORE INTO wpvb_users (uid, userid) VALUES (%d, %d)", $uid, $userid);
+	$wpdb = wpvb_db();
+  $wpdb->query("INSERT IGNORE INTO wpvb_users (uid, userid) VALUES (%d, %d)", $uid, $userid);
 }
 
 /**
  * Export all drupal users to vBulletin.
  */
 function wpvb_export_drupal_users() {
+	$wpdb = wpvb_db();
   module_load_include('inc', 'wpvb');
 
   $result = db_query("SELECT * FROM users ORDER BY uid");
@@ -266,7 +289,7 @@ function wpvb_export_drupal_users() {
     if (!wpvb_create_user($user, (array)$user)) {
       // Username already exists, update email and password only.
       // Case insensitive username is required to detect collisions.
-      $vbuser = db_fetch_array(wpvb_db_query("SELECT salt FROM user WHERE LOWER(username) = LOWER('%s')", wpvb_htmlspecialchars($user->name)));
+      $vbuser = db_fetch_array($wpdb->query("SELECT salt FROM user WHERE LOWER(username) = LOWER('%s')", wpvb_htmlspecialchars($user->name)));
       wpvb_update_user($user, array_merge((array)$user, $vbuser));
     }
   }
@@ -276,10 +299,11 @@ function wpvb_export_drupal_users() {
  * Get vBulletin configuration options.
  */
 function wpvb_get_options() {
+	$wpdb = wpvb_db();
   static $options = array();
 
   if (empty($options)) {
-    $result = db_query("SELECT varname, value FROM setting");
+    $result = $wpdb->query("SELECT varname, value FROM setting");
     while ($var = db_fetch_array($result)) {
       $options[$var['varname']] = $var['value'];
     }
@@ -306,7 +330,8 @@ function wpvb_get_config() {
  * Get vB user roles.
  */
 function wpvb_get_roles() {
-  $result = wpvb_db_query("SELECT usergroupid, title FROM usergroup");
+	$wpdb = wpvb_db();
+  $result = $wpdb->query("SELECT usergroupid, title FROM usergroup");
 
   $roles = array();
   while ($data = db_fetch_object($result)) {
@@ -322,11 +347,12 @@ function wpvb_get_roles() {
  * Get vB language id by given ISO language code.
  */
 function wpvb_get_languageid($language = NULL) {
+	$wpdb = wpvb_db();
   static $vblanguages;
 
   if (!isset($vblanguages)) {
     $vblanguages = array();
-    $result = wpvb_db_query("SELECT languageid, title, languagecode FROM language");
+    $result = $wpdb->query("SELECT languageid, title, languagecode FROM language");
     while ($lang = db_fetch_array($result)) {
       $vblanguages[$lang['languagecode']] = $lang['languageid'];
     }
@@ -339,6 +365,7 @@ function wpvb_get_languageid($language = NULL) {
  * Get counts of guests and members currently online.
  */
 function wpvb_get_users_online() {
+	$wpdb = wpvb_db();
   $vb_options = wpvb_get('options');
 
   $datecut          = time() - $vb_options['cookietimeout'];
@@ -346,7 +373,7 @@ function wpvb_get_users_online() {
   $numberregistered = 0;
   $numberguest      = 0;
 
-  $result = wpvb_db_query("SELECT user.username, user.usergroupid, session.userid, session.lastactivity FROM {session} AS session LEFT JOIN user AS user ON (user.userid = session.userid) WHERE session.lastactivity > %d", $datecut);
+  $result = $wpdb->query("SELECT user.username, user.usergroupid, session.userid, session.lastactivity FROM session AS session LEFT JOIN user AS user ON (user.userid = session.userid) WHERE session.lastactivity > %d", $datecut);
 
   $userinfos = array();
 
@@ -369,21 +396,23 @@ function wpvb_get_users_online() {
  * Get counts of new or recent posts for the current user.
  */
 function wpvb_get_recent_posts($scope = 'last') {
+	$wpdb = wpvb_db();
   global $user;
 
   // Queries the vB user database to find a matching set of user data.
-  $result = wpvb_db_query("SELECT userid, username, lastvisit FROM user WHERE username = '%s'", wpvb_htmlspecialchars($user->name));
+  $result = $wpdb->query("SELECT userid, username, lastvisit FROM user WHERE username = '%s'", wpvb_htmlspecialchars($user->name));
 
   // Make sure a user is logged in to get their last visit and appropriate post
   // count.
   if ($vb_user = db_fetch_array($result)) {
+		$wpdb = wpvb_db();
     if ($scope == 'last') {
       $datecut = $vb_user['lastvisit'];
     }
     else if ($scope == 'daily') {
       $datecut = time() - 86400;
     }
-    $posts = db_result(wpvb_db_query("SELECT COUNT(postid) FROM post WHERE dateline > %d", $datecut));
+    $posts = $wpdb->get_results("SELECT COUNT(postid) FROM post WHERE dateline > %d", $datecut);
   }
   else {
     $posts = 0;
