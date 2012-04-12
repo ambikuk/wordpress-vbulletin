@@ -239,12 +239,12 @@ function wpvb_create_user($edit) {
     $salt .= chr(rand(32, 126));
   }
   // Note: Password is already hashed during user export.
-  if (isset($edit['pass1'])) {
-    $passhash = md5($edit['pass1'] . $salt);
-  }
-  else {
-    $passhash = md5(md5($edit['pass1']) . $salt);
-  }
+//  if (isset($edit['pass1'])) {
+//    $passhash = md5($edit['pass1'] . $salt);
+//  }
+//  else {
+//    $passhash = md5(md5($edit['pass1']) . $salt);
+//  }
 
 //  $passdate = date('Y-m-d', $account->created);
 //  $joindate = $account->created;

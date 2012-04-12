@@ -59,3 +59,16 @@ function add_vb_add_user(){
 	var_dump($_POST);exit;
 
 }
+
+add_filter("ws_plugin__s2member_login_redirect", "redirect_password_login_redirect", 10, 2);
+function redirect_password_login_redirect($redirect, $vars = array('user' => null)) {
+
+    if( isset($user->ID) ) {
+        $changed_password = get_metadata("user", $user->ID, "changed_password",true);
+        if( $changed_password != true ) {
+            return get_bloginfo('url') . "/change-password/";
+        } else {
+            return $redirect;
+        }
+    }
+}
