@@ -16,9 +16,9 @@ define('VB_COOKIE_PREFIX', 'bb');
 define('VB_TIMENOW', time());
 define('VB_COOKIETIMEOUT', 900);
 
-add_action( 'wp_logout', 'add_vb_logout' );
-add_action('wp_authenticate_user', 'add_vb_login');
-//add_action('register_post', 'wpbb_register_hint');
+add_action('wp_logout', 'add_vb_logout');
+add_action('wp_login', 'add_vb_login');
+add_action('user_register','add_vb_add_user');
 /*
  * login
  */
@@ -40,6 +40,22 @@ function add_vb_logout()
 }
 
 function add_vb_login(){
-	$user = wp_get_current_user();
-	wpvb_set_login_cookies($user->user_id);
+	global $wpdb;
+	$user = $wpdb->get_row($wpdb->prepare("SELECT * FROM $wpdb->users WHERE user_login = '%s' ",$_POST['log']));
+//	var_dump($user->ID);exit; 
+	wpvb_set_login_cookies($user->ID);
+}
+
+function add_vb_add_user(){
+	global $wpdb;
+	$user = $wpdb->get_row("SELECT * FROM $wpdb->users order by ID desc");
+	
+	$post = $_POST;
+	
+	array_push($post,$user->ID);
+	
+	wpvb_create_user($post);
+	
+	var_dump($_POST);exit;
+
 }

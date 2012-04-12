@@ -20,11 +20,14 @@
  */
 function wpvb_set_login_cookies($userid) {
   // Load required vB user data.
+	global $wpdb;
 	$vbdb = wpvb_db();
   $vbuser = $vbdb->get_row($vbdb->prepare("SELECT userid, password, salt FROM user WHERE userid = %d", $userid));
   if (!$vbuser) {
     return FALSE;
   }
+	
+//	var_dump($vbuser);exit;
   
   $vb_config = wpvb_get('config');
   $vb_options = wpvb_get('options');
@@ -44,22 +47,37 @@ function wpvb_set_login_cookies($userid) {
 
   // Clear out old session (if available).
   if (!empty($_COOKIE[$cookie_prefix .'sessionhash'])) {
-    wpvb_db_query("DELETE FROM session WHERE sessionhash = '%s'", $_COOKIE[$cookie_prefix .'sessionhash']);
+   $vpdb->query($vpdb->prepare("DELETE FROM session WHERE sessionhash = '%s'", $_COOKIE[$cookie_prefix .'sessionhash']));
   }
 
   // Setup user session.
   $ip = implode('.', array_slice(explode('.', wpvb_get_ip()), 0, 4 - $vb_options['ipcheck']));
   $idhash = md5($_SERVER['HTTP_USER_AGENT'] . $ip);
   $sessionhash = md5($now . request_uri() . $idhash . $_SERVER['REMOTE_ADDR'] . user_password(6));
-
-  wpvb_db_query("REPLACE INTO session (sessionhash, userid, host, idhash, lastactivity, location, useragent, loggedin) VALUES ('%s', %d, '%s', '%s', %d, '%s', '%s', %d)", $sessionhash, $vbuser['userid'], substr($_SERVER['REMOTE_ADDR'], 0, 15), $idhash, $now, '/forum/', $_SERVER['HTTP_USER_AGENT'], 2);
-
+//	var_dump($now);exit;
+//  $vpdb->query($vpdb->prepare("REPLACE INTO session (sessionhash, userid, host, idhash, lastactivity, location, useragent, loggedin) VALUES ('%s', %d, '%s', '%s', %d, '%s', '%s', %d)", $sessionhash, $vbuser->userid, substr($_SERVER['REMOTE_ADDR'], 0, 15), $idhash, $now, '/forum/', $_SERVER['HTTP_USER_AGENT'], 2));
+	$wpdb->insert( 
+		'session', 
+		array( 
+			'sessionhash'=>$sessionhash,
+			'userid'=>$vbuser->userid,
+			'host'=>substr($_SERVER['REMOTE_ADDR'], 0, 15),
+			'idhash'=>$idhash,
+			'lastactivity'=>$now,
+			'location'=>'/forum/',
+			'useragent'=> $_SERVER['HTTP_USER_AGENT'],
+			'loggedin'=>2
+		), 
+		array( 
+			'%s', '%d', '%s', '%s', '%d', '%s', '%s', '%d'
+		) 
+	);
   // Setup cookies.
-  setcookie($cookie_prefix .'sessionhash', $sessionhash, $expire, $cookie_path, $vb_cookie_domain);
-  setcookie($cookie_prefix .'lastvisit', $now, $expire, $cookie_path, $vb_cookie_domain);
-  setcookie($cookie_prefix .'lastactivity', $now, $expire, $cookie_path, $vb_cookie_domain);
-  setcookie($cookie_prefix .'userid', $vbuser['userid'], $expire, $cookie_path, $vb_cookie_domain);
-  setcookie($cookie_prefix .'password', md5($vbuser['password'] . variable_get('wpvb_license', '')), $expire, $cookie_path, $vb_cookie_domain);
+  setcookie($cookie_prefix .'_sessionhash', $sessionhash, $expire, $cookie_path, $vb_cookie_domain);
+  setcookie($cookie_prefix .'_lastvisit', $now, $expire, $cookie_path, $vb_cookie_domain);
+  setcookie($cookie_prefix .'_lastactivity', $now, $expire, $cookie_path, $vb_cookie_domain);
+  setcookie($cookie_prefix .'_userid', $vbuser->userid, $expire, $cookie_path, $vb_cookie_domain);
+  setcookie($cookie_prefix .'_password', md5($vbuser->password . get_option('wpvb_license', '')), $expire, $cookie_path, $vb_cookie_domain);
   return TRUE;
 }
 
@@ -132,10 +150,86 @@ function wpvb_get_ip() {
  * @param array $edit
  *   Form values provided by hook_user().
  */
-function wpvb_create_user($account, $edit) {
+//function wpvb_create_user($account, $edit) {
+//	$wpdb = wpvb_db();
+//  // Ensure we are not duplicating a user.
+//  if ($wpdb->query($wpdb->prepare("SELECT COUNT(ID) FROM $wpdb->users WHERE LOWER(username) = LOWER('%s')", wpvb_htmlspecialchars($edit['username']))) > 0) {
+//    return FALSE;
+//  }
+//
+//  $salt = '';
+//  for ($i = 0; $i < 3; $i++) {
+//    $salt .= chr(rand(32, 126));
+//  }
+//  // Note: Password is already hashed during user export.
+//  if (isset($edit['md5pass'])) {
+//    $passhash = md5($edit['md5pass'] . $salt);
+//  }
+//  else {
+//    $passhash = md5(md5($edit['pass']) . $salt);
+//  }
+//
+////  $passdate = date('Y-m-d', $account->created);
+////  $joindate = $account->created;
+//  $passdate = date('Y-m-d', time());
+//  $joindate = $account->time();
+//
+//  // Attempt to grab the user title from the database.
+////  $result = $wpdb->query("SELECT title FROM usertitle WHERE minposts = 0");
+////  if ($resarray = db_fetch_array($result)) {
+////    $usertitle = $resarray['title'];
+////  }
+////  else {
+////    $usertitle = 'Junior Member';
+////  }
+//
+//  // Divide timezone by 3600, since vBulletin stores hours.
+//  $timezone = get_option('timezone_string', 0);
+//  $timezone = ($timezone != 0 ? $timezone / 3600 : 0);
+//
+//  // Default new user options: I got these by setting up a new user how I
+//  // wanted and looking in the database to see what options were set for him.
+////  $options = get_option('wpvb_default_options', '3415');
+//	$options = '3415';
+//
+//  // Default usergroup id.
+////  $usergroupid = get_option('wpvb_default_usergroup', '2');
+//	$usergroupid = '2';
+//  // Set up the insertion query.
+//	
+//	$result = $wpdb->insert('user', array(
+//		'username' => htmlspecialchars($edit['name']),
+//		'usergroupid' => $usergroupid, 
+//		'password' => $passhash, 
+//		'passworddate' => $passdate, 
+//		'usertitle' => $usertitle, 
+//		'email' => $edit['mail'], 
+//		'salt' => $salt, 
+//		'languageid' => wpvb_get('languageid'), 
+//		'timezoneoffset' =>  $timezone,  
+//		'joindate' => $joindate, 
+//		'lastvisit' => time(), 
+//		'lastactivity' => time(), 
+//		'options' => $options
+//	), array(
+//		'%s', '%s', '%s', '%s', '%s', '%s', '%s', '1', '%d', '%s', '0', '%s', '%s', '%s', '%s'
+//	));
+//
+//  $userid = $wpdb->insert_id;
+//
+//  $wpdb->query("INSERT INTO userfield (userid) VALUES (%d)", $userid);
+//  $wpdb->query("INSERT INTO usertextfield (userid) VALUES (%d)", $userid);
+//
+//  // Insert new user into mapping table.
+//  wpvb_set_mapping($account->uid, $userid);
+//
+//  // Return userid of newly created account.
+//  return $userid;
+//}
+function wpvb_create_user($edit) {
 	$wpdb = wpvb_db();
   // Ensure we are not duplicating a user.
-  if ($wpdb->query("SELECT COUNT(userid) FROM user WHERE LOWER(username) = LOWER('%s')", wpvb_htmlspecialchars($edit['name'])) > 0) {
+  if ($wpdb->query($wpdb->prepare("SELECT COUNT(ID) FROM $wpdb->users WHERE LOWER(username) = LOWER('%s')", wpvb_htmlspecialchars($edit['username']))) > 0) {
     return FALSE;
   }
 
@@ -144,66 +238,74 @@ function wpvb_create_user($account, $edit) {
     $salt .= chr(rand(32, 126));
   }
   // Note: Password is already hashed during user export.
-  if (isset($edit['md5pass'])) {
-    $passhash = md5($edit['md5pass'] . $salt);
+  if (isset($edit['pass1'])) {
+    $passhash = md5($edit['pass1'] . $salt);
   }
   else {
-    $passhash = md5(md5($edit['pass']) . $salt);
+    $passhash = md5(md5($edit['pass1']) . $salt);
   }
 
-  $passdate = date('Y-m-d', $account->created);
-  $joindate = $account->created;
+//  $passdate = date('Y-m-d', $account->created);
+//  $joindate = $account->created;
+  $passdate = date('Y-m-d', time());
+  $joindate = date('Y-m-d', time());
 
   // Attempt to grab the user title from the database.
-  $result = $wpdb->query("SELECT title FROM usertitle WHERE minposts = 0");
-  if ($resarray = db_fetch_array($result)) {
-    $usertitle = $resarray['title'];
-  }
-  else {
-    $usertitle = 'Junior Member';
-  }
+//  $result = $wpdb->query("SELECT title FROM usertitle WHERE minposts = 0");
+//  if ($resarray = db_fetch_array($result)) {
+//    $usertitle = $resarray['title'];
+//  }
+//  else {
+//    $usertitle = 'Junior Member';
+//  }
 
   // Divide timezone by 3600, since vBulletin stores hours.
-  $timezone = variable_get('date_default_timezone', 0);
+  $timezone = get_option('timezone_string', 0);
   $timezone = ($timezone != 0 ? $timezone / 3600 : 0);
 
   // Default new user options: I got these by setting up a new user how I
   // wanted and looking in the database to see what options were set for him.
-  $options = variable_get('wpvb_default_options', '3415');
+//  $options = get_option('wpvb_default_options', '3415');
+	$options = '3415';
 
   // Default usergroup id.
-  $usergroupid = variable_get('wpvb_default_usergroup', '2');
-
+//  $usergroupid = get_option('wpvb_default_usergroup', '2');
+	$usergroupid = '2';
   // Set up the insertion query.
 	
+//	wpvb_get('languageid'); 
+	$langId = 0;
+	
 	$result = $wpdb->insert('user', array(
-		'username' => htmlspecialchars($edit['name']),
+		'userid' => $edit[0],
+		'username' => htmlspecialchars($edit['user_login']),
 		'usergroupid' => $usergroupid, 
 		'password' => $passhash, 
 		'passworddate' => $passdate, 
 		'usertitle' => $usertitle, 
-		'email' => $edit['mail'], 
+		'email' => $edit['email'], 
 		'salt' => $salt, 
-		'languageid' => wpvb_get('languageid'), 
+		'languageid' => $langId, 
 		'timezoneoffset' =>  $timezone,  
 		'joindate' => $joindate, 
 		'lastvisit' => time(), 
 		'lastactivity' => time(), 
-		'options' => $options
+		'options' => $options,
+		'usertitle' => $edit['role']
 	), array(
-		'%s', '%s', '%s', '%s', '%s', '%s', '%s', '1', '%d', '%s', '0', '%s', '%s', '%s', '%s'
+		'%d','%s', '%s', '%s', '%s', '%s', '%s', '%s', '1', '%d', '%s', '0', '%s', '%s', '%s', '%s'
 	));
 
-  $userid = $wpdb->insert_id;
-
-  $wpdb->query("INSERT INTO userfield (userid) VALUES (%d)", $userid);
-  $wpdb->query("INSERT INTO usertextfield (userid) VALUES (%d)", $userid);
+//  $userid = $wpdb->insert_id;
+//
+//  $wpdb->query("INSERT INTO userfield (userid) VALUES (%d)", $userid);
+//  $wpdb->query("INSERT INTO usertextfield (userid) VALUES (%d)", $userid);
 
   // Insert new user into mapping table.
-  wpvb_set_mapping($account->uid, $userid);
+//  wpvb_set_mapping($account->uid, $userid);
 
   // Return userid of newly created account.
-  return $userid;
+  return true;
 }
 
 /**
