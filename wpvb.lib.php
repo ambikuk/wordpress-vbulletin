@@ -230,6 +230,7 @@ function wpvb_create_user($edit) {
 	$wpdb = wpvb_db();
   // Ensure we are not duplicating a user.
   if ($wpdb->query($wpdb->prepare("SELECT COUNT(ID) FROM $wpdb->users WHERE LOWER(username) = LOWER('%s')", wpvb_htmlspecialchars($edit['username']))) > 0) {
+
     return FALSE;
   }
 
